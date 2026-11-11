@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "guid": "9e405477-411c-4c2b-8541-c3b5925f7169",
+    "name": "Glide Video Toolkit",
+    "overview": "在服务器保存视频方向、批量队列和旋转预览",
+    "description": "For Jellyfin 12.2 on Linux Docker. Server-side MP4/MOV/M4V rotation, durable serial queues, updated preview frames and verified backup restore. Requires explicit user authorization and writable library paths. No video transfer through the phone.",
+    "owner": "sssnto",
+    "category": "General",
+    "versions": [
+      {
+        "version": "1.1.1.0",
+        "changelog": "Independent repository and Jellyfin catalog installation. Retains the 1.1.0 rotation engine, configuration, backups and task history.",
+        "targetAbi": "12.2.0.0",
+        "sourceUrl": "https://github.com/sssnto/GlideToolkit/releases/download/v1.1.1/GlideToolkit-1.1.1-Jellyfin-12.2.zip",
+        "checksum": "37f308701f3e752ad51ab46fdcfc96d9",
+        "timestamp": "2026-11-11T11:07:09Z"
+      }
+    ]
+  }
+]
