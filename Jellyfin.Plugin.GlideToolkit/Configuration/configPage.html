@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html><head><title>Glide 视频工具</title></head>
+<body><div id="GlideToolkitPage" data-role="page" class="page type-interior pluginConfigurationPage">
+<div data-role="content"><div class="content-primary"><form id="GlideToolkitForm">
+<h2>Glide 视频工具</h2>
+<p>在服务器内备份并无损修正 MP4、MOV、M4V 的方向，Glide 无需下载和上传原片。需要媒体目录可写。</p>
+<div class="checkboxContainer checkboxContainer-withDescription"><label><input is="emby-checkbox" type="checkbox" id="GlideEnabled"><span>启用服务器旋转保存</span></label></div>
+<div class="inputContainer"><label class="inputLabel" for="GlideUsers">额外授权用户 ID（每行一个）</label><textarea is="emby-textarea" id="GlideUsers"></textarea><div class="fieldDescription">管理员默认可用。普通用户需显式授权，且仍受原有媒体库可见性限制。</div></div>
+<div class="inputContainer"><label class="inputLabel" for="GlideRoots">允许修改的容器内目录（每行一个）</label><textarea is="emby-textarea" id="GlideRoots"></textarea><div class="fieldDescription">留空表示已有媒体库中的本地文件。填写后进一步限制范围；不接受网络链接和符号链接。</div></div>
+<p>备份位于原文件同目录的 .glide-rotation 隐藏目录。任务和还原记录保存在 Jellyfin 数据目录。不要在需要还原期间删除这些备份。</p>
+<button is="emby-button" type="submit" class="raised button-submit block"><span>保存</span></button>
+</form></div></div>
+<div class="content-primary" style="margin-top:2em">
+<h2>异常任务恢复 · 1.0.1</h2>
+<p>仅管理员可用。即使原视频已从片库消失，也可以用任务编号核对备份。恢复只补回缺失的原文件，校验完整 SHA-256，不覆盖现有文件，不移动或删除备份。文件较大时核对和复制需要等待。</p>
+<button is="emby-button" type="button" id="GlideRecoveryList" class="raised"><span>查找异常任务</span></button>
+<pre id="GlideRecoveryTasks" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
+<div class="inputContainer"><label class="inputLabel" for="GlideRecoveryId">需要核对的任务编号</label><input is="emby-input" id="GlideRecoveryId" autocomplete="off"></div>
+<button is="emby-button" type="button" id="GlideRecoveryInspect" class="raised"><span>核对原片和备份</span></button>
+<button is="emby-button" type="button" id="GlideRecoveryRestore" class="raised" disabled><span>从备份补回缺失原片</span></button>
+<p id="GlideRecoveryResult" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere"></p>
+</div>
+<script>
+(function(){
+const id='9e405477-411c-4c2b-8541-c3b5925f7169';
+const page=document.querySelector('#GlideToolkitPage');
+let checkedJob=null;
+const result=page.querySelector('#GlideRecoveryResult');
+function jobId(){const value=page.querySelector('#GlideRecoveryId').value.trim();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))throw new Error('请填写完整的任务编号（含连字符）。');return value;}
+async function request(path,method,body){
+const response=await ApiClient.ajax({type:method||'GET',url:ApiClient.getUrl('GlideToolkit/'+path),data:body===undefined?undefined:JSON.stringify(body),contentType:'application/json',dataType:'json'});return response;
+}
+function showRecovery(value){
+checkedJob=value;page.querySelector('#GlideRecoveryRestore').disabled=!(value.canRecoverMissing||(value.originalRestored&&value.state==='needs_verification'));
+page.querySelector('#GlideRecoveryRestore').textContent=value.originalRestored?'确认原片已恢复':'从备份补回缺失原片';
+result.textContent=value.originalRestored?'原片已恢复，完整摘要与备份一致。请刷新 Jellyfin 对应媒体库后播放；保留备份。':
+value.originalExists?'原位置已有文件，恢复不会覆盖它。':value.canRecoverMissing?'原片缺失；备份完整校验通过，可以补回原片。':
+'当前不能自动恢复，请保留备份。错误编号：'+(value.failureCode||value.errorCode||value.state);
+}
+async function recoveryAction(action){
+page.querySelector('#GlideRecoveryRestore').disabled=true;result.textContent='正在服务器核对，请等待；不要重复提交或删除备份。';
+try{await action();}catch(error){checkedJob=null;result.textContent='操作未完成。请重新核对任务；不要覆盖或删除备份。'+(error.message?' '+error.message:'');}
+}
+page.querySelector('#GlideRecoveryList').addEventListener('click',()=>recoveryAction(async()=>{
+const jobs=await request('Recovery/Jobs');page.querySelector('#GlideRecoveryTasks').textContent=jobs.map(x=>x.jobId+' · '+x.state).join('\n')||'未找到异常任务';
+if(jobs.length===1)page.querySelector('#GlideRecoveryId').value=jobs[0].jobId;result.textContent='选择任务编号后，先核对原片和备份。';
+}));
+page.querySelector('#GlideRecoveryInspect').addEventListener('click',()=>recoveryAction(async()=>showRecovery(await request('Jobs/'+jobId()+'/Recovery'))));
+page.querySelector('#GlideRecoveryRestore').addEventListener('click',()=>{
+const value=jobId();if(!checkedJob||checkedJob.jobId.toLowerCase()!==value.toLowerCase()||!(checkedJob.canRecoverMissing||checkedJob.originalRestored))return;
+if(!window.confirm(checkedJob.originalRestored?'原片摘要与备份完全一致，确认结束这项异常任务？不会修改视频。':'确认在 NAS 内复制已校验备份，补回缺失的原视频？已有文件不会被覆盖，备份和临时文件会保留。'))return;
+recoveryAction(async()=>showRecovery(await request('Jobs/'+value+'/RecoverMissing','POST',{confirmed:true})));
+});
+page.querySelector('#GlideRecoveryId').addEventListener('input',()=>{checkedJob=null;page.querySelector('#GlideRecoveryRestore').disabled=true;});
+page.addEventListener('pageshow',async function(){
+Dashboard.showLoadingMsg();
+try{const c=await ApiClient.getPluginConfiguration(id);page.querySelector('#GlideEnabled').checked=c.Enabled;page.querySelector('#GlideUsers').value=(c.AllowedUserIds||[]).join('\n');page.querySelector('#GlideRoots').value=(c.AllowedRoots||[]).join('\n');}finally{Dashboard.hideLoadingMsg();}
+});
+page.querySelector('form').addEventListener('submit',async function(e){
+e.preventDefault();Dashboard.showLoadingMsg();
+try{const c=await ApiClient.getPluginConfiguration(id);c.Enabled=page.querySelector('#GlideEnabled').checked;c.AllowedUserIds=page.querySelector('#GlideUsers').value.split('\n').map(x=>x.trim()).filter(Boolean);c.AllowedRoots=page.querySelector('#GlideRoots').value.split('\n').map(x=>x.trim()).filter(Boolean);const r=await ApiClient.updatePluginConfiguration(id,c);Dashboard.processPluginConfigurationUpdateResult(r);}finally{Dashboard.hideLoadingMsg();}
+return false;
+});
+})();
+</script></div></body></html>
