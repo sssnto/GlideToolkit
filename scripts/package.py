@@ -55,7 +55,7 @@ def main():
     timestamp = dt.datetime.fromtimestamp(epoch, dt.timezone.utc)
     assembly_version = version + '.0'
     metadata = {'guid': GUID, 'name': NAME, 'version': assembly_version, 'targetAbi': ABI,
-                'description': 'Server-side rotation queues, updated previews and verified backup recovery.',
+                'description': 'Server-side rotation, home-video move, recoverable deletion and verified restore queues.',
                 'status': 'Active', 'autoUpdate': True, 'assemblies': [dll.name]}
     contents = {dll.name: dll.read_bytes(), 'meta.json': (json.dumps(metadata, indent=2) + '\n').encode(),
                 'README.md': (ROOT / 'README.md').read_bytes()}
@@ -68,10 +68,10 @@ def main():
             info.external_attr = 0o100644 << 16
             package.writestr(info, data)
     data = archive.read_bytes()
-    entry = {'guid': GUID, 'name': NAME, 'overview': '在服务器保存视频方向、批量队列和旋转预览',
-             'description': 'For Jellyfin 12.2 on Linux Docker. Server-side MP4/MOV/M4V rotation, durable serial queues, updated preview frames and verified backup restore. Requires explicit user authorization and writable library paths. No video transfer through the phone.',
+    entry = {'guid': GUID, 'name': NAME, 'overview': '服务器视频方向与批量文件整理',
+             'description': 'For Jellyfin 12.2 on Linux Docker. Server-side MP4/MOV/M4V rotation, durable serial queues, updated preview frames and verified backup restore. Adds separately authorized home-video move, recycle and restore. Requires explicit user authorization and writable library paths. No video transfer through the phone.',
              'owner': 'sssnto', 'category': 'General', 'versions': [{
-                 'version': assembly_version, 'changelog': 'Independent repository and Jellyfin catalog installation. Retains the 1.1.0 rotation engine, configuration, backups and task history.',
+                 'version': assembly_version, 'changelog': 'Batch home-video move, recoverable deletion and restore with durable serial tasks, same-name protection, subtitle sidecars and folder index refresh. File management is disabled until separately authorized by an administrator.',
                  'targetAbi': ABI, 'sourceUrl': f'https://github.com/{REPO}/releases/download/v{version}/{archive.name}',
                  'checksum': hashlib.md5(data).hexdigest(), 'timestamp': timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')}]}
     existing = json.loads(manifest.read_text()) if manifest.exists() else []

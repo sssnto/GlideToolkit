@@ -8,6 +8,10 @@
 <div class="inputContainer"><label class="inputLabel" for="GlideUsers">额外授权用户 ID（每行一个）</label><textarea is="emby-textarea" id="GlideUsers"></textarea><div class="fieldDescription">管理员默认可用。普通用户需显式授权，且仍受原有媒体库可见性限制。</div></div>
 <div class="inputContainer"><label class="inputLabel" for="GlideRoots">允许修改的容器内目录（每行一个）</label><textarea is="emby-textarea" id="GlideRoots"></textarea><div class="fieldDescription">留空表示已有媒体库中的本地文件。填写后进一步限制范围；不接受网络链接和符号链接。</div></div>
 <p>备份位于原文件同目录的 .glide-rotation 隐藏目录。任务和还原记录保存在 Jellyfin 数据目录。不要在需要还原期间删除这些备份。</p>
+<h3>批量删除与移动 · 1.2.0</h3>
+<div class="checkboxContainer"><label><input is="emby-checkbox" type="checkbox" id="GlideFileManagement"><span>启用家庭视频文件整理</span></label></div>
+<div class="inputContainer"><label class="inputLabel" for="GlideFileUsers">允许整理文件的普通用户 ID（每行一个）</label><textarea is="emby-textarea" id="GlideFileUsers"></textarea></div>
+<p>默认关闭；开启后管理员可用，普通用户需在此单独授权，旋转权限不自动获得文件整理权限。移动限同一媒体目录根内的已入库目录，同名不覆盖，跨磁盘拒绝。删除将视频及同名外挂字幕移入原目录下 .glide-trash 回收目录，可从 Glide 整理任务还原。不会永久清空文件，不自动搬动海报、NFO 或方向备份。</p>
 <button is="emby-button" type="submit" class="raised button-submit block"><span>保存</span></button>
 </form></div></div>
 <div class="content-primary" style="margin-top:2em">
@@ -54,11 +58,11 @@ recoveryAction(async()=>showRecovery(await request('Jobs/'+value+'/RecoverMissin
 page.querySelector('#GlideRecoveryId').addEventListener('input',()=>{checkedJob=null;page.querySelector('#GlideRecoveryRestore').disabled=true;});
 page.addEventListener('pageshow',async function(){
 Dashboard.showLoadingMsg();
-try{const c=await ApiClient.getPluginConfiguration(id);page.querySelector('#GlideEnabled').checked=c.Enabled;page.querySelector('#GlideUsers').value=(c.AllowedUserIds||[]).join('\n');page.querySelector('#GlideRoots').value=(c.AllowedRoots||[]).join('\n');}finally{Dashboard.hideLoadingMsg();}
+try{const c=await ApiClient.getPluginConfiguration(id);page.querySelector('#GlideEnabled').checked=c.Enabled;page.querySelector('#GlideFileManagement').checked=c.FileManagementEnabled===true;page.querySelector('#GlideFileUsers').value=(c.FileManagementUserIds||[]).join('\n');page.querySelector('#GlideUsers').value=(c.AllowedUserIds||[]).join('\n');page.querySelector('#GlideRoots').value=(c.AllowedRoots||[]).join('\n');}finally{Dashboard.hideLoadingMsg();}
 });
 page.querySelector('form').addEventListener('submit',async function(e){
 e.preventDefault();Dashboard.showLoadingMsg();
-try{const c=await ApiClient.getPluginConfiguration(id);c.Enabled=page.querySelector('#GlideEnabled').checked;c.AllowedUserIds=page.querySelector('#GlideUsers').value.split('\n').map(x=>x.trim()).filter(Boolean);c.AllowedRoots=page.querySelector('#GlideRoots').value.split('\n').map(x=>x.trim()).filter(Boolean);const r=await ApiClient.updatePluginConfiguration(id,c);Dashboard.processPluginConfigurationUpdateResult(r);}finally{Dashboard.hideLoadingMsg();}
+try{const c=await ApiClient.getPluginConfiguration(id);c.Enabled=page.querySelector('#GlideEnabled').checked;c.FileManagementEnabled=page.querySelector('#GlideFileManagement').checked;c.FileManagementUserIds=page.querySelector('#GlideFileUsers').value.split('\n').map(x=>x.trim()).filter(Boolean);c.AllowedUserIds=page.querySelector('#GlideUsers').value.split('\n').map(x=>x.trim()).filter(Boolean);c.AllowedRoots=page.querySelector('#GlideRoots').value.split('\n').map(x=>x.trim()).filter(Boolean);const r=await ApiClient.updatePluginConfiguration(id,c);Dashboard.processPluginConfigurationUpdateResult(r);}finally{Dashboard.hideLoadingMsg();}
 return false;
 });
 })();

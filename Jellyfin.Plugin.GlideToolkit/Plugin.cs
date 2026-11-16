@@ -12,6 +12,8 @@ namespace Jellyfin.Plugin.GlideToolkit;
 public sealed class PluginConfiguration : BasePluginConfiguration
 {
     public bool Enabled { get; set; } = true;
+    public bool FileManagementEnabled { get; set; } = false;
+    public string[] FileManagementUserIds { get; set; } = [];
     public string[] AllowedUserIds { get; set; } = [];
     /// Empty means library roots; a nonempty list further restricts those roots.
     public string[] AllowedRoots { get; set; } = [];
@@ -29,6 +31,11 @@ public sealed class Services : IPluginServiceRegistrator
 {
     public void RegisterServices(IServiceCollection services, IServerApplicationHost host)
     {
+        services.AddSingleton<MediaMutationGate>();
+        services.AddSingleton<FileManagementLibrary>();
+        services.AddSingleton<FileActionStore>(provider => new FileActionStore(Path.Combine(provider.GetRequiredService<IApplicationPaths>().DataPath, "glide-file-actions")));
+        services.AddSingleton<FileManagementJobs>();
+        services.AddHostedService(provider => provider.GetRequiredService<FileManagementJobs>());
         services.AddSingleton<RotationLibrary>();
         services.AddSingleton<RotationStore>(provider => new RotationStore(Path.Combine(provider.GetRequiredService<IApplicationPaths>().DataPath, "glide-rotation-jobs")));
         services.AddSingleton<RotationBatches>(provider => new RotationBatches(Path.Combine(provider.GetRequiredService<IApplicationPaths>().DataPath, "glide-rotation-batches")));

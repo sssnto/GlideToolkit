@@ -7,7 +7,7 @@ using Jellyfin.Plugin.GlideToolkit.Core;
 namespace Jellyfin.Plugin.GlideToolkit;
 
 public sealed class RotationJobs(RotationStore store, RotationProcessor processor, RotationLibrary library,
-    ILibraryMonitor monitor, ILogger<RotationJobs> logger) : BackgroundService
+    ILibraryMonitor monitor, ILogger<RotationJobs> logger, MediaMutationGate gate) : BackgroundService
 {
     private readonly object _sync = new();
     private readonly Dictionary<Guid, RotationJob> _jobs = [];
@@ -46,6 +46,7 @@ public sealed class RotationJobs(RotationStore store, RotationProcessor processo
             _queue.Writer.TryWrite(job.Id); return job.Status();
         }
     }
+    public bool BusyPath(string path) { lock (_sync) return _jobs.Values.Any(j => j.Path == path && j.State is "queued" or "running" or "committing" or "needs_verification"); }
     public JobStatus? Find(Guid user, Guid id) { lock (_sync) return _jobs.TryGetValue(id, out var job) && job.UserId == user ? job.Status() : null; }
     public JobStatus? FindByRequest(Guid user, Guid request)
     { lock (_sync) return _jobs.Values.FirstOrDefault(j => j.UserId == user && j.Request.RequestId == request)?.Status(); }
@@ -142,6 +143,7 @@ public sealed class RotationJobs(RotationStore store, RotationProcessor processo
                 RotationJob job; RotationJob? restore;
                 lock (_sync) { job = _jobs[id]; restore = job.Request.RestoreJobId is Guid prior ? _jobs.GetValueOrDefault(prior) : null; }
                 var monitored = false;
+                await gate.Semaphore.WaitAsync(stoppingToken).ConfigureAwait(false);
                 try
                 {
                     library.Revalidate(job);
@@ -167,7 +169,7 @@ public sealed class RotationJobs(RotationStore store, RotationProcessor processo
                     // Never log exception messages: IO exceptions can contain private media paths.
                     logger.LogWarning("Glide rotation job {JobId} ended with {Code}; detail {FailureCode}", job.Id, job.ErrorCode, job.FailureCode);
                 }
-                finally { if (monitored) monitor.ReportFileSystemChangeComplete(job.Path, false); }
+                finally { if (monitored) monitor.ReportFileSystemChangeComplete(job.Path, false); gate.Semaphore.Release(); }
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }

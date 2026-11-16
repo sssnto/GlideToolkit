@@ -132,6 +132,7 @@ try
     Check(restored.CompletedAt == completionTime, "later_metadata_journal_updates_do_not_reorder_saved_previews");
     Check(store.Load().First(j => j.Id == restored.Id).CompletedAt == completionTime, "saved_preview_order_survives_restart");
     BatchChecks.Run(root, Check);
+    FileActionChecks.Run(root, Check);
     var output = args.Length > 1 ? args[1] : Path.Combine(root, "report.json");
     File.WriteAllText(output, JsonSerializer.Serialize(new { passed = true, checks = passed, timestamp = DateTime.UtcNow }, new JsonSerializerOptions { WriteIndented = true }));
     Console.WriteLine($"Passed {passed.Count} server rotation checks");

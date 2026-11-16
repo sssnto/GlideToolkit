@@ -18,6 +18,6 @@ cp Jellyfin.Plugin.GlideToolkit.dll meta.json "$temporary/GlideToolkit_1.0.0.0/"
 chmod 755 "$temporary/GlideToolkit_1.0.0.0"
 chmod 644 "$temporary/GlideToolkit_1.0.0.0/"*
 docker cp "$temporary/GlideToolkit_1.0.0.0" "$container:/config/plugins/"
-echo '插件已更新至 1.1.1，尚未启动。确认无误后执行：'
+echo '插件已更新至 1.2.0，尚未启动。确认无误后执行：'
 printf 'docker start %s\n' "$container"
 echo '重启后在 Jellyfin 网页管理后台的“我的插件”中确认 Glide Video Toolkit。'
